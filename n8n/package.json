@@ -1,0 +1,6 @@
+{
+  "name": "packages",
+  "version": "1.0.0",
+  "description": "npm packages for n8n",
+  "workspaces": ["packages/*"]
+}
