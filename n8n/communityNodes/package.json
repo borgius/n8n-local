@@ -1,0 +1,18 @@
+{
+  "name": "nodes",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "install": "^0.13.0",
+    "n8n-nodes-browser-use": "^0.1.6",
+    "n8n-nodes-mcp": "^0.1.13",
+    "npm": "^11.2.0"
+  }
+}

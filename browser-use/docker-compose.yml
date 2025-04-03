@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  browser-n8n-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "24006:8000"
+    environment:
+      # API Configuration
+      - PORT=8000
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL_ID=${OPENAI_MODEL_ID:-gpt-4o}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      
+      # Anthropic Configuration
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_MODEL_ID=${ANTHROPIC_MODEL_ID:-claude-3-opus-20240229}
+      
+      # MistralAI Configuration
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - MISTRAL_MODEL_ID=${MISTRAL_MODEL_ID:-mistral-large-latest}
+      
+      # Google AI Configuration
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_MODEL_ID=${GOOGLE_MODEL_ID:-gemini-1.5-pro}
+      
+      # Ollama Configuration
+      - OLLAMA_API_BASE=${OLLAMA_API_BASE:-http://localhost:11434}
+      - OLLAMA_MODEL_ID=${OLLAMA_MODEL_ID:-llama3}
+      
+      # Azure OpenAI Configuration
+      - AZURE_API_KEY=${AZURE_API_KEY}
+      - AZURE_ENDPOINT=${AZURE_ENDPOINT}
+      - AZURE_DEPLOYMENT_NAME=${AZURE_DEPLOYMENT_NAME}
+      - AZURE_API_VERSION=${AZURE_API_VERSION:-2023-05-15}
+      
+      # Optional Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Set to true to see the browser during execution
+      - BROWSER_USE_HEADFUL=${BROWSER_USE_HEADFUL:-false}
+    volumes:
+      # Mount local directory to persist browser data and task results
+      - ./data:/app/data
+    restart: unless-stopped
+    # Added healthcheck to ensure service is running properly
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s 

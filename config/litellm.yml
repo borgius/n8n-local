@@ -1,0 +1,57 @@
+# https://docs.litellm.ai/docs/proxy/config_settings
+model_list:
+  - model_name: Claude 3.7 Sonnet
+    litellm_params:
+      model: claude-3-7-sonnet-latest
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: openai-embedding
+    litellm_params:
+      model: openai/text-embedding-3-small
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: ollama-llama3.2
+    litellm_params:
+      model: ollama_chat/llama3.2:latest
+      api_base: "http://host.docker.internal:11434"
+  - model_name: ollama-llama3.2-vision
+    litellm_params:
+      model: ollama_chat/llama3.2-vision:latest
+      api_base: "http://host.docker.internal:11434"
+  - model_name: ollama-lwk-v3
+    litellm_params:
+      model: ollama_chat/lwk/v3:latest
+      api_base: "http://host.docker.internal:11434"
+  - model_name: ollama-deepseek-r1-7b
+    litellm_params:
+      model: ollama_chat/deepseek-r1:7b
+      api_base: "http://host.docker.internal:11434"
+       
+
+general_settings:
+  master_key: os.environ/MASTER_KEY
+  default_team_disabled: false
+  litellm_logging: true
+
+litellm_settings:
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+
+  
+  cache: false          # set cache responses to True, litellm defaults to using a redis cache
+  cache_params:
+    host: qdrant
+    port: 6333
+    type: qdrant-semantic
+    qdrant_semantic_cache_embedding_model: openai-embedding # the model should be defined on the model_list
+    qdrant_collection_name: litellm_cache
+    qdrant_quantization_config: binary
+    similarity_threshold: 0.8

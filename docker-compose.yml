@@ -3,7 +3,13 @@ volumes:
   postgres_storage:
   ollama_storage:
   qdrant_storage:
+  open-webui:
   node_modules:
+  langfuse_postgres_data:
+  langfuse_clickhouse_data:
+  langfuse_clickhouse_logs:
+  langfuse_minio_data:
+  nodes_node_modules:
 
 networks:
   n8n:
@@ -11,7 +17,7 @@ networks:
 x-n8n: &service-n8n
   image: n8n
   build:
-    context: .
+    context: n8n
     dockerfile: Dockerfile
   networks: ['n8n']
   environment:
@@ -28,36 +34,22 @@ x-n8n: &service-n8n
     - NODE_FUNCTION_ALLOW_EXTERNAL=*
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    hostname: postgres
-    networks: ['n8n']
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-      - POSTGRES_DB
-    volumes:
-      - postgres_storage:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   n8n-import:
     <<: *service-n8n
     hostname: n8n-import
     container_name: n8n-import
-    user: root
-    entrypoint: n8n/scripts/init.sh
+    networks: ['n8n']
+    entrypoint: scripts/init.sh
     command:
       - n8nImport
     env_file:
-      - .env  
+      - .env
     volumes:
-      - ./n8n/backup:/backup
-      - ./n8n:/home/node/n8n
+      - ./data/backup:/backup
+      - ./n8n/scripts:/home/node/scripts
+    environment:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,22 +58,28 @@ services:
     <<: *service-n8n
     hostname: n8n
     container_name: n8n
+    networks: ['n8n']
     restart: unless-stopped
-    entrypoint: n8n/scripts/init.sh
+    env_file:
+      - .env
+    entrypoint: scripts/init.sh    
     command:
       - mountModules
       - entrypoint
     extra_hosts:
-      - "host.docker.internal:host-gateway"
-      - "host:host-gateway"
-      - "ollama:host-gateway"
+      - 'host.docker.internal:host-gateway'
+      - 'host:host-gateway'
+      - 'ollama:host-gateway'
     ports:
       - 5678:5678
+    environment:
+      - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
     volumes:
       - n8n_storage:/home/node/.n8n
-      - ./n8n/backup:/backup
+      - ./n8n/customNodes/dist:/home/node/.n8n/custom
+      - ./n8n/scripts:/home/node/scripts
+      - ./data/backup:/backup
       - ./shared:/data/shared
-      - ./n8n:/home/node/n8n
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,3 +96,266 @@ services:
       - 6333:6333
     volumes:
       - qdrant_storage:/qdrant/storage
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    hostname: litellm
+    container_name: litellm
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+      - 'ollama:host-gateway'
+    networks: ['n8n']
+    ports:
+      - '4000:4000'
+    volumes:
+      - ./config/litellm.yml:/app/config.yaml
+    command: --config /app/config.yaml --port 4000
+    restart: always
+    environment:
+      - MASTER_KEY=${LITELLM_MASTER_KEY} # Your master key for the proxy server. Can use this to send /chat/completion requests etc
+      - LITELLM_SALT_KEY=${LITELLM_SALT_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/litellm
+      - STORE_MODEL_IN_DB=${STORE_MODEL_IN_DB:-True}
+      - QDRANT_API_BASE=http://qdrant:6333
+      - LANGFUSE_HOST=http://langfuse:3000
+    healthcheck:
+      test: ["CMD", "wget", "--header=accept: application/json", "-O", "-", "http://localhost:4000"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      langfuse:
+        condition: service_started
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    hostname: openwebui
+    container_name: openwebui
+    networks: ['n8n']
+    ports:
+      - '3000:8080'
+    volumes:
+      - open-webui:/app/backend/data
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      - WEBUI_AUTH=False
+      - ENABLE_OLLAMA_API=False
+      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+      - OPENAI_API_BASE_URL=http://litellm:4000/v1
+    restart: always
+    depends_on:
+      litellm:
+        condition: service_healthy
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    hostname: langfuse-worker
+    container_name: langfuse-worker
+    restart: always
+    networks: ['n8n']
+    depends_on: &langfuse-depends-on
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - 3030:3030
+    env_file:
+      - .env
+    environment: &langfuse-worker-env
+      DATABASE_URL: postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/langfuse
+      SALT: ${LANGFUSE_SALT}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY} # CHANGE ME: generate via `openssl rand -hex 32`
+      TELEMETRY_ENABLED: ${LANGFUSE_TELEMETRY_ENABLED:-true}
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: true
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_CLUSTER_ENABLED: false
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD} 
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: true
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: true
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+      LANGFUSE_INGESTION_QUEUE_DELAY_MS: 
+      LANGFUSE_INGESTION_CLICKHOUSE_WRITE_INTERVAL_MS: 
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_AUTH: ${REDIS_AUTH} 
+      REDIS_TLS_ENABLED: false
+      REDIS_TLS_CA: /certs/ca.crt
+      REDIS_TLS_CERT: /certs/redis.crt
+      REDIS_TLS_KEY: /certs/redis.key
+
+  langfuse:
+    image: langfuse/langfuse:3
+    hostname: langfuse
+    container_name: langfuse
+    restart: always
+    depends_on: 
+      langfuse-worker:
+        condition: service_started
+    networks: ['n8n']
+    ports:
+      - 3001:3000
+    env_file:
+      - .env
+    environment:
+      <<: *langfuse-worker-env
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      DATABASE_URL: postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/langfuse
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      # LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID}
+      # LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME}
+      # LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID}
+      # LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME}
+      # LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
+      # LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
+      # LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL}
+      # LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME}
+      # LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
+
+  browser-use:
+    image: browser-use
+    hostname: browser-use
+    container_name: browser-use
+    build:
+      context: ./browser-use
+    ports:
+      - "24006:8000"
+    environment:
+      # API Configuration
+      - PORT=8000
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+      - OPENAI_MODEL_ID=gpt-4o
+      - OPENAI_BASE_URL=http://litellm/v1      
+      # Optional Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Set to true to see the browser during execution
+      - BROWSER_USE_HEADFUL=${BROWSER_USE_HEADFUL:-false}
+    volumes:
+      # Mount local directory to persist browser data and task results
+      - ./data:/app/data
+    restart: unless-stopped
+    # Added healthcheck to ensure service is running properly
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s 
+
+  postgres:
+    image: postgres:16-alpine
+    hostname: postgres
+    container_name: postgres
+    networks: ['n8n']
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    volumes:
+      - postgres_storage:/var/lib/postgresql/data
+    ports:
+      - 5432:5432  
+    healthcheck:
+      test:
+        - 'CMD-SHELL'
+        - 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}'
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    hostname: redis
+    container_name: redis
+    restart: always
+    networks: ['n8n']
+    env_file:
+      - .env
+    command: >
+      --requirepass ${REDIS_AUTH}
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 10 
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    hostname: clickhouse
+    container_name: clickhouse
+    restart: always
+    user: "101:101"
+    networks: ['n8n']
+    env_file:
+      - .env
+    environment:
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB:-default}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    ports:
+      - 8123:8123
+      - 9000:9000
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 1s
+
+  minio:
+    image: minio/minio
+    hostname: minio
+    container_name: minio
+    restart: always
+    networks: ['n8n']
+    entrypoint: sh
+    # create the 'langfuse' bucket before starting the service
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minio}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-miniosecret}
+    ports:
+      - 9090:9000
+      - 127.0.0.1:9091:9001
+    volumes:
+      - langfuse_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+      start_period: 1s

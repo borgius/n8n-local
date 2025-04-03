@@ -1,3 +1,5 @@
 .env
+Dockerfile
+backup
 **/node_modules
-
+n8n/**/node_modules
