@@ -74,10 +74,15 @@ services:
       - 5678:5678
     environment:
       - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
+      # - https_proxy=$https_proxy
+      # - http_proxy=$http_proxy
+      # - no_proxy=$no_proxy
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - n8n_storage:/home/node/.n8n
       - ./n8n/customNodes/dist:/home/node/.n8n/custom
       - ./n8n/scripts:/home/node/scripts
+      - ./n8n/tools:/home/node/tools
       - ./data/backup:/backup
       - ./shared:/data/shared
     depends_on:
@@ -260,7 +265,7 @@ services:
       - BROWSER_USE_HEADFUL=${BROWSER_USE_HEADFUL:-false}
     volumes:
       # Mount local directory to persist browser data and task results
-      - ./data:/app/data
+      - ./data/browser-use:/app/data
     restart: unless-stopped
     # Added healthcheck to ensure service is running properly
     healthcheck:
@@ -359,3 +364,27 @@ services:
       timeout: 5s
       retries: 5
       start_period: 1s
+
+  steel-browser-api:
+    image: ghcr.io/steel-dev/steel-browser-api:latest
+    ports:
+      - "$STEEL_API_PORT:3000"
+      - "9223:9223"
+    volumes:
+      - ./data/steel-api/.cache:/app/.cache
+    networks:
+      - n8n
+
+  steel-browser-ui:
+    image: ghcr.io/steel-dev/steel-browser-ui:latest
+    ports:
+      - "$STEEL_UI_PORT:80"
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+      - 'host:host-gateway'
+    environment:
+      - API_URL=http://host:$STEEL_API_PORT
+    depends_on:
+      - steel-browser-api
+    networks:
+      - n8n

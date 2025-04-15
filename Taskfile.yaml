@@ -1,0 +1,62 @@
+version: '3'
+dotenv: ['.env', '.env.ports']
+
+tasks:
+  default:
+    desc: This help
+    cmds:
+      - task -a --sort none
+    silent: true
+
+  start:
+    aliases: [s]
+    cmds:
+      - docker compose up
+
+  n8n-reset-password:
+    cmds:
+      - docker exec -ti n8n n8n user-management:reset
+
+  install: 
+    desc: Install tools
+    cmds: 
+      - brew install bash go-task/tap/go-task bitwarden-cli node@22 pnpm python@3 
+  build:
+    desc: Build all dependencies
+    cmds: 
+      - task: build-n8n
+      - task: build-mcp-steel
+      - task: build-jobspy
+      # - task: build-tools-steel-browser
+
+
+  build-n8n:
+    dir: mcp/steel-mcp-server
+    cmds: 
+      - docker pull n8nio/n8n:next
+      - docker compose build n8n
+
+  build-jobspy:
+    dir: mcp/jobspy-mcp-server
+    cmds: 
+      - task build
+
+  build-mcp-steel:
+    dir: mcp/steel-mcp-server
+    cmds:
+      - npm i --package-lock-only --ignore-scripts
+      - >
+        docker build 
+        --build-arg https_proxy=$https_proxy 
+        --build-arg NODE_TLS_REJECT_UNAUTHORIZED=0
+        -t mcp-steel .
+
+  build-tools-steel-browser:
+    dir: tools/steel-browser
+    cmds:
+      - >
+        docker build 
+        -f api/Dockerfile
+        --build-arg https_proxy=$https_proxy 
+        --build-arg NODE_TLS_REJECT_UNAUTHORIZED=0
+        -t steel-browser .

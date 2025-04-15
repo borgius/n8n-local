@@ -1,0 +1,9 @@
+[submodule "mcp/steel-mcp-server"]
+	path = mcp/steel-mcp-server
+	url = https://github.com/borgius/steel-mcp-server.git
+[submodule "tools/steel-browser"]
+	path = tools/steel-browser
+	url = https://github.com/borgius/steel-browser.git
+[submodule "mcp/jobspy-mcp-server"]
+	path = mcp/jobspy-mcp-server
+	url = https://github.com/borgius/jobspy-mcp-server.git
