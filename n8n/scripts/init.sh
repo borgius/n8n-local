@@ -54,6 +54,21 @@ customNodes() {
   npm install
 }
 
+installMcpServers() {
+  set -x
+  ls -la  /usr/local/lib/node_modules
+  sudo chown node:node /home/node/mcp/node_modules 
+  sudo npm install @go-task/cli mcp-proxy pm2@latest -g
+}
+
+startMcpServers() {
+  echo "Start MCP Servers"
+  set -x
+  cd ~/mcp
+  pnpm i
+  pm2 start
+}
+
 entrypoint() {
   tini -- /docker-entrypoint.sh
 }
