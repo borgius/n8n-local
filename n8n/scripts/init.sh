@@ -55,16 +55,14 @@ customNodes() {
 }
 
 installMcpServers() {
-  set -x
-  ls -la  /usr/local/lib/node_modules
-  sudo chown node:node /home/node/mcp/node_modules 
-  sudo npm install @go-task/cli mcp-proxy pm2@latest -g
+  has pm2 || sudo npm install @go-task/cli mcp-proxy pm2@latest -g
 }
 
 startMcpServers() {
   echo "Start MCP Servers"
   set -x
   cd ~/mcp
+  sudo chown node:node /home/node/mcp/node_modules 
   pnpm i
   pm2 start
 }
