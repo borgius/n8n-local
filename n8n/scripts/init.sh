@@ -62,9 +62,11 @@ startMcpServers() {
   echo "Start MCP Servers"
   set -x
   cd ~/mcp
-  sudo chown node:node /home/node/mcp/node_modules 
-  pnpm i
-  pm2 start
+  sudo chown node:node /home/node/mcp/node_modules /home/node/mcp/.pnpm-store
+  {
+    pnpm i
+    pm2 start
+  } & nohup
 }
 
 entrypoint() {
