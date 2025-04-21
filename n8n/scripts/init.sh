@@ -66,7 +66,7 @@ startMcpServers() {
   {
     pnpm i
     pm2 start
-  } & nohup
+  } &
 }
 
 entrypoint() {

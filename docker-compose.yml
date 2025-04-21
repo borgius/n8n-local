@@ -12,6 +12,7 @@ volumes:
   nodes_node_modules:
   mcp_node_modules:
   mcp_pnpm_store:
+  nocodb_data:
 
 networks:
   n8n:
@@ -395,3 +396,20 @@ services:
       - steel-browser-api
     networks:
       - n8n
+
+  nocodb:
+    image: nocodb/nocodb:latest
+    hostname: nocodb
+    container_name: nocodb
+    networks: ['n8n']
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    environment:
+      - NC_DB=pg://postgres:5432?u=${POSTGRES_USER}&p=${POSTGRES_PASSWORD}&d=${POSTGRES_DB}
+      - NC_AUTH_JWT_SECRET=569a1821-0a93-45e8-87ab-eb857f20a010
+    volumes:
+      - nocodb_data:/usr/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
