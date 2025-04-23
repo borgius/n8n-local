@@ -16,8 +16,8 @@ RUN	<<EOR
 	mkdir -p .n8n n8n
 EOR
 
-COPY scripts n8n/scripts
-COPY packages n8n/packages
+COPY scripts scripts
+COPY packages packages
 COPY ./package*.json /home/node/n8n/
 COPY communityNodes /home/node/.n8n/nodes
 COPY customNodes /home/node/.n8n/custom 
