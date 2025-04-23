@@ -16,6 +16,14 @@ tasks:
   n8n-reset-password:
     cmds:
       - docker exec -ti n8n n8n user-management:reset
+  backup:
+    cmds:
+      - docker exec -ti n8n n8n export:workflow --backup --output=/backup/workflows
+      - docker exec -ti n8n n8n export:credentials --backup --output=/backup/credentials
+  restore:
+    cmds:
+      - docker exec -ti n8n n8n import:workflow --separate --input=/backup/workflows
+      - docker exec -ti n8n n8n import:credentials --separate --input=/backup/credentials 
 
   install: 
     desc: Install tools

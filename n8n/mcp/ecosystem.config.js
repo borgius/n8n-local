@@ -6,6 +6,9 @@ module.exports = {
       env: {
         ENABLE_SSE: 1,
       },
+      watch: ['src'],
+      // Delay between restart
+      watch_delay: 1000,
       script: './src/index.js',
     },
     {
