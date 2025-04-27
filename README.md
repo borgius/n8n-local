@@ -1,5 +1,7 @@
 [Original README.md](./README_orig.md)
 
+Please use `task` tool to run tasks (https://taskfile.dev/installation/)
+
 ```
 docker compose up
 ```
