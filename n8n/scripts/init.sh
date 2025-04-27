@@ -40,7 +40,7 @@ mountModules() {
   echo "Create a links to local packages"
   ls -1 packages | while read pkg; do
     if [ ! -L "$n8nModules/$pkg" ] && [ ! -d "$n8nModules/$pkg" ]; then
-      sudo ln -sv "/home/node/n8n/packages/$pkg" "$n8nModules/$pkg"
+      sudo ln -sv "/home/node/packages/$pkg" "$n8nModules/$pkg"
     else
       echo "Link for $pkg already exists, skipping"
     fi
