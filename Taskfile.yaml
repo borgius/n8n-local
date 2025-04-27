@@ -8,52 +8,96 @@ tasks:
       - task -a --sort none
     silent: true
 
+  init:
+    desc: Initialize the project by setting up dependencies, fetching environment variables, building, and starting services
+    cmds:
+      - task: git-submodules
+      - task: install
+      - task: bw-fetch
+      - task: build
+      - task: start
+
   git-submodules:
+    desc: Update git submodules
     cmds: 
       - git submodule update --init --recursive
+
+  install: 
+    desc: Install tools
+    aliases: [i]
+    cmds: 
+      - brew install bash go-task/tap/go-task bitwarden-cli node@22 pnpm python@3 
+
+  bw-fetch:
+    desc: Fetch environment variables from Bitwarden and save to .env file
+    cmds:
+      - rm -rf .env.backup
+      - test -f .env && mv .env .env.backup
+      - bw list items --search "localhost n8n" | jq -r '.[0].notes' > .env
+
+  bw-update:
+    desc: Update Bitwarden item with the current .env file content
+    cmd: |
+      item="$(bw list items --search "localhost n8n" | jq '.[0]' | base64)"
+      itemId=$(echo "$item" | base64 -d | jq -r '.id')
+      echo "$item" | base64 -d | jq --arg notes "$(cat .env)" '.notes=$notes' | bw encode | bw edit item $itemId | jq -r .notes
+
   start:
+    desc: Start docker containers
     aliases: [s]
     cmds:
       - docker compose up
 
+    preconditions:
+      - sh: docker images | grep -q n8n && docker images | grep -q jobspy && docker images | grep -q mcp-steel
+        msg: "Required docker images not found. Run 'task build' first."
+
   n8n-reset-password:
+    desc: Reset n8n user password
     cmds:
       - docker exec -ti n8n n8n user-management:reset
+
   backup:
+    desc: Backup n8n workflows and credentials
     cmds:
       - docker exec -ti n8n n8n export:workflow --backup --output=/backup/workflows
       - docker exec -ti n8n n8n export:credentials --backup --output=/backup/credentials
+
   restore:
+    desc: Restore n8n workflows and credentials
     cmds:
       - docker exec -ti n8n n8n import:workflow --separate --input=/backup/workflows
       - docker exec -ti n8n n8n import:credentials --separate --input=/backup/credentials 
 
-  install: 
-    desc: Install tools
-    cmds: 
-      - brew install bash go-task/tap/go-task bitwarden-cli node@22 pnpm python@3 
   build:
     desc: Build all dependencies
+    aliases: [b]
     cmds: 
       - task: build-n8n
-      - task: build-mcp-steel
       - task: build-jobspy
+      - task: build-mcp-steel
       # - task: build-tools-steel-browser
+    preconditions:
+      - sh: docker version -f json | jq -e '(.Server.BuildTime | split(".")[0] | split("+")[0] + "Z" | fromdateiso8601) > ("2025-03-25T00:00:00Z" | fromdateiso8601)'
+        msg: "Docker Engine build date must be after March 25, 2025 (docker version)"
 
 
   build-n8n:
+    desc: Build n8n docker image
     dir: mcp/steel-mcp-server
     cmds: 
       - docker pull n8nio/n8n:next
       - docker compose build n8n
 
   build-jobspy:
-    dir: mcp/jobspy-mcp-server
+    desc: Build jobspy server docker image
+    dir: n8n/mcp/jobspy-mcp-server
     cmds: 
       - task build
 
   build-mcp-steel:
-    dir: mcp/steel-mcp-server
+    desc: Build mcp-steel server docker image
+    dir: n8n/mcp/steel-mcp-server
     cmds:
       - npm i --package-lock-only --ignore-scripts
       - >
@@ -63,6 +107,7 @@ tasks:
         -t mcp-steel .
 
   build-tools-steel-browser:
+    desc: Build steel-browser tool docker image
     dir: tools/steel-browser
     cmds:
       - >

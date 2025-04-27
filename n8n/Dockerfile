@@ -22,4 +22,4 @@ COPY ./package*.json /home/node/n8n/
 COPY communityNodes /home/node/.n8n/nodes
 COPY customNodes /home/node/.n8n/custom 
 COPY mcp /home/node/mcp 
-RUN n8n/scripts/init.sh nodeModules communityNodes installMcpServers
+RUN scripts/init.sh nodeModules communityNodes installMcpServers
