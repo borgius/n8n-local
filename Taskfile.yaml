@@ -1,5 +1,7 @@
 version: '3'
 dotenv: ['.env', '.env.ports']
+env:
+  BUILDKIT_PROGRESS: plain
 
 tasks:
   default:
@@ -27,6 +29,10 @@ tasks:
     aliases: [i]
     cmds: 
       - brew install bash go-task/tap/go-task bitwarden-cli node@22 pnpm python@3 
+      - |
+        cd n8n/customNodes
+        npm install
+        npm run build
 
   bw-fetch:
     desc: Fetch environment variables from Bitwarden and save to .env file
@@ -77,9 +83,9 @@ tasks:
       - task: build-jobspy
       - task: build-mcp-steel
       # - task: build-tools-steel-browser
-    preconditions:
-      - sh: docker version -f json | jq -e '(.Server.BuildTime | split(".")[0] | split("+")[0] + "Z" | fromdateiso8601) > ("2025-03-25T00:00:00Z" | fromdateiso8601)'
-        msg: "Docker Engine build date must be after March 25, 2025 (docker version)"
+    # preconditions:
+    #   - sh: docker version -f json | jq -e '(.Server.BuildTime | split(".")[0] | split("+")[0] + "Z" | fromdateiso8601) > ("2025-03-25T00:00:00Z" | fromdateiso8601)'
+    #     msg: "Docker Engine build date must be after March 25, 2025 (docker version)"
 
 
   build-n8n:
