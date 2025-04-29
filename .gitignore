@@ -1,6 +1,8 @@
 .env
 .env.backup
 node_modules
-tmp
 .pnpm-store
+.npm
+.cache
+tmp
 data/backup

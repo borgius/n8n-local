@@ -1,0 +1,7 @@
+{
+  "description": "npm packages for n8n",
+  "workspaces": ["*"],
+  "dependencies": {
+
+  }
+}
