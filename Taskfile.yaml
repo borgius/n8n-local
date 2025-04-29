@@ -59,13 +59,16 @@ tasks:
   reset:
     desc: Reset N8N environment (remove volumes)
     cmds: 
+      - docker compose kill
       - docker compose down -v
+      - task: start
 
   start:
     desc: Start docker containers
     aliases: [s]
     cmds:
-      - docker compose up
+      - docker compose up -d
+      - docker compose logs -f
 
     preconditions:
       - sh: docker images | grep -q n8n && docker images | grep -q jobspy && docker images | grep -q mcp-steel

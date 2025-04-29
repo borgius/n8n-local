@@ -61,6 +61,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - n8n_storage:/home/node/.n8n
+      - .gitignore:/home/node/.gitignore
       - ./n8n/scripts:/home/node/scripts
       
       # additional packages for n8n

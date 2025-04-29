@@ -7,25 +7,20 @@ has() { type "$1" &>/dev/null; }
 
 gitInit() {
   cd /home/node
-  test -f .gitignore || {
-    echo "Creating .gitignore"
-    printf 'node_modules\n.pnpm-store\n.npm\n.cache'>.gitignore
-    set -x
+  test -d .git || {
+    git config --global init.defaultBranch main
     git init
     git config --global user.name "n8n"
     git config --global user.email "n8n@localhost"
     git add .
     git commit -m "Initial commit"
-    set +x
   }
 }
 
 fixPermissions() {
   echo "Fixing permissions"
-  set -x
   mkdir -p /home/node/.n8n/nodes
   sudo chown -R node:node /home/node/.n8n/nodes
-  set +x
 }
 
 n8nImport() {
@@ -64,11 +59,14 @@ extraPackages() {
 }
 
 communityNodes() {
-  + mkdir -p /home/node/.n8n/nodes
+  + mkdir -p /home/node/.n8n/nodes/node_modules
+  cd /home/node/.n8n/nodes
   if [ -d "/home/node/_communityNodes" ]; then
     cp -rfv /home/node/_communityNodes/* /home/node/.n8n/nodes/
   fi
+  + chown -R node:node node_modules
   + npm install
+  cd /home/node
 }
 
 customNodes() {
@@ -79,13 +77,14 @@ customNodes() {
 
 startMcpServers() {
   echo "Start MCP Servers"
-  set -x
   cd ~/mcp
   sudo chown node:node /home/node/mcp/node_modules /home/node/mcp/.pnpm-store
   {
-    pnpm i
-    pm2 start
+    + pnpm i
+    + pm2 start
   } &
+  cd /home/node
+  echo "MCP Servers started"
 }
 
 entrypoint() {
