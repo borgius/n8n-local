@@ -2,7 +2,7 @@ FROM n8nio/n8n:next
 USER root
 RUN <<EOR
 	set -x
-	apk update && apk add sudo shadow bash curl nano jq docker-cli docker-cli-compose
+	apk update && apk add sudo shadow bash curl nano jq docker-cli docker-cli-compose deno
 	addgroup node root
 	echo "node ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/node
 	chmod 0440 /etc/sudoers.d/node 

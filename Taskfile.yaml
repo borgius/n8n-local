@@ -28,11 +28,19 @@ tasks:
     desc: Install tools
     aliases: [i]
     cmds: 
-      - brew install bash go-task/tap/go-task bitwarden-cli node@22 pnpm python@3 
+      - brew install bash go-task/tap/go-task bitwarden-cli node@20 pnpm python@3 
+      - npm i -g ipt
       - |
         cd n8n/customNodes
         npm install
         npm run build
+
+  add-community-node:
+    desc: Add community node
+    cmds:
+      - |
+        cd n8n/communityNodes
+        npm i --package-lock-only $(ipt -i -M "Add Community Node:" -D "n8n-nodes-")
 
   bw-fetch:
     desc: Fetch environment variables from Bitwarden and save to .env file
@@ -47,6 +55,11 @@ tasks:
       item="$(bw list items --search "localhost n8n" | jq '.[0]' | base64)"
       itemId=$(echo "$item" | base64 -d | jq -r '.id')
       echo "$item" | base64 -d | jq --arg notes "$(cat .env)" '.notes=$notes' | bw encode | bw edit item $itemId | jq -r .notes
+
+  reset:
+    desc: Reset N8N environment (remove volumes)
+    cmds: 
+      - docker compose down -v
 
   start:
     desc: Start docker containers

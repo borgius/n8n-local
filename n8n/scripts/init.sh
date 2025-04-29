@@ -8,6 +8,13 @@ init(){
   }
 }
 
+fixPermissions(){
+  echo "Fixing permissions"
+  set -x
+  sudo chown -R node:node /home/node/.n8n/nodes
+  set +x
+}
+
 n8nImport(){
   if [ -d "/backup/credentials" ] && [ -n "$(ls -A /backup/credentials 2>/dev/null)" ]; then
     echo "Found credentials to import"

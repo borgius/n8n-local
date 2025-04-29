@@ -32,6 +32,7 @@ services:
       - .env
     entrypoint: scripts/init.sh    
     command:
+      - fixPermissions
       - mountModules
       - n8nImport
       - startMcpServers
@@ -74,6 +75,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--header=accept: application/json", "-O", "-", "http://localhost:5678/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   qdrant:
     image: qdrant/qdrant
@@ -85,6 +92,12 @@ services:
       - 6333:6333
     volumes:
       - qdrant_storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "wget", "--header=accept: application/json", "-O", "-", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
@@ -120,8 +133,8 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
-      langfuse:
-        condition: service_started
+      # langfuse:
+      #   condition: service_started
 
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
@@ -140,6 +153,12 @@ services:
       - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
       - OPENAI_API_BASE_URL=http://litellm:4000/v1
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-H 'accept: application/json'", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 50
+      start_period: 10s
     depends_on:
       litellm:
         condition: service_healthy
@@ -197,67 +216,81 @@ services:
       REDIS_TLS_CA: /certs/ca.crt
       REDIS_TLS_CERT: /certs/redis.crt
       REDIS_TLS_KEY: /certs/redis.key
-
-  langfuse:
-    image: langfuse/langfuse:3
-    hostname: langfuse
-    container_name: langfuse
-    restart: always
-    depends_on: 
-      langfuse-worker:
-        condition: service_started
-    networks: ['n8n']
-    ports:
-      - 3001:3000
-    env_file:
-      - .env
-    environment:
-      <<: *langfuse-worker-env
-      NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      DATABASE_URL: postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/langfuse
-      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
-      # LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID}
-      # LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME}
-      # LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID}
-      # LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME}
-      # LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
-      # LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
-      # LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL}
-      # LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME}
-      # LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
-
-  browser-use:
-    image: browser-use
-    hostname: browser-use
-    container_name: browser-use
-    build:
-      context: ./browser-use
-    ports:
-      - "24006:8000"
-    environment:
-      # API Configuration
-      - PORT=8000
-      
-      # OpenAI Configuration
-      - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
-      - OPENAI_MODEL_ID=gpt-4o
-      - OPENAI_BASE_URL=http://litellm/v1      
-      # Optional Configuration
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      # Set to true to see the browser during execution
-      - BROWSER_USE_HEADFUL=${BROWSER_USE_HEADFUL:-false}
-    volumes:
-      # Mount local directory to persist browser data and task results
-      - ./data/browser-use:/app/data
-    restart: unless-stopped
-    # Added healthcheck to ensure service is running properly
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s 
+      test: ["CMD", "wget", "--header=accept: application/json", "-O", "-", "http://localhost:3030"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # langfuse:
+  #   image: langfuse/langfuse:3
+  #   hostname: langfuse
+  #   container_name: langfuse
+  #   restart: always
+  #   depends_on: 
+  #     langfuse-worker:
+  #       condition: service_started
+  #     postgres:
+  #       condition: service_healthy
+  #   networks: ['n8n']
+  #   ports:
+  #     - 3001:3000
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     <<: *langfuse-worker-env
+  #     NEXTAUTH_URL: http://localhost:3000
+  #     NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+  #     DATABASE_URL: postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/langfuse
+  #     CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+  #     # LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID}
+  #     # LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME}
+  #     # LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID}
+  #     # LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME}
+  #     # LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
+  #     # LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
+  #     # LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL}
+  #     # LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME}
+  #     # LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--header=accept: application/json", "-O", "-", "http://localhost:3000/api/public/health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+
+  # browser-use:
+  #   image: browser-use
+  #   hostname: browser-use
+  #   container_name: browser-use
+  #   build:
+  #     context: ./browser-use
+  #   ports:
+  #     - "24006:8000"
+  #   environment:
+  #     # API Configuration
+  #     - PORT=8000
+      
+  #     # OpenAI Configuration
+  #     - OPENAI_API_KEY=${LITELLM_MASTER_KEY}
+  #     - OPENAI_MODEL_ID=gpt-4o
+  #     - OPENAI_BASE_URL=http://litellm/v1      
+  #     # Optional Configuration
+  #     - LOG_LEVEL=${LOG_LEVEL:-INFO}
+  #     # Set to true to see the browser during execution
+  #     - BROWSER_USE_HEADFUL=${BROWSER_USE_HEADFUL:-false}
+  #   volumes:
+  #     # Mount local directory to persist browser data and task results
+  #     - ./data/browser-use:/app/data
+  #   restart: unless-stopped
+  #   # Added healthcheck to ensure service is running properly
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 15s 
 
   postgres:
     image: postgres:16-alpine
@@ -359,6 +392,12 @@ services:
       - ./data/steel-api/.cache:/app/.cache
     networks:
       - n8n
+    healthcheck:
+      test: ["CMD", "wget", "--header=accept: application/json", "-O", "-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   steel-browser-ui:
     image: ghcr.io/steel-dev/steel-browser-ui:latest
@@ -373,6 +412,12 @@ services:
       - steel-browser-api
     networks:
       - n8n
+    healthcheck:
+      test: ["CMD", "wget", "-O", "-", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   nocodb:
     image: nocodb/nocodb:latest
@@ -390,6 +435,12 @@ services:
       - NC_AUTH_JWT_SECRET=569a1821-0a93-45e8-87ab-eb857f20a010
     volumes:
       - nocodb_data:/usr/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-O", "-", "http://localhost:8080/api/v1/db/meta/projects"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
