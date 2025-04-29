@@ -1,7 +1,14 @@
 {
   "description": "npm packages for n8n",
-  "workspaces": ["*"],
+  "workspaces": [
+    "*"
+  ],
+  "devDependencies": {
+    "@types/deno": "^2.2.0",
+    "@types/node": "^22.15.3"
+  },
   "dependencies": {
-
+    "node-fetch": "^3.3.2",
+    "pg": "^8.15.6"
   }
 }

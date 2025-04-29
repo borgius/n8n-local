@@ -106,7 +106,6 @@ tasks:
 
   build-n8n:
     desc: Build n8n docker image
-    dir: mcp/steel-mcp-server
     cmds: 
       - docker pull n8nio/n8n:next
       - docker compose build n8n

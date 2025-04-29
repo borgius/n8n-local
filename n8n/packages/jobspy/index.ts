@@ -1,17 +1,14 @@
-const fetch = require('node-fetch');
-const pg = require('pg');
+import { Client as PgClient } from "jsr:@db/postgres";
+import { SearchParams, JobData, PgConfig } from "./types.ts";
+import { JobDescriptionSchema } from "./schemas.ts";
 
-const JOBSPY_PORT = process.env.JOBSPY_PORT || 9423;
-const JOBSPY_HOST = process.env.JOBSPY_HOST || '127.0.0.1';
+const JOBSPY_PORT = Deno.env.get("JOBSPY_PORT") || "9423";
+const JOBSPY_HOST = Deno.env.get("JOBSPY_HOST") || "127.0.0.1";
 
-const hello = async (world = 'world') => {
+export const hello = async (world: string = 'world'): Promise<string> => {
   const res = `Hello ${world}!!!`;
   return res;
 };
-
-/**
- * @typedef {import('./types').SearchParams} SearchParams
- */
 
 /**
  * Fetches job listings from various job sites based on provided search parameters.
@@ -22,21 +19,21 @@ const hello = async (world = 'world') => {
  * @returns {Promise<Object>} A promise that resolves to the job search results.
  * @throws {Error} If the API request fails.
  */
-const fetchJobs = async (params = {}) => {
+export const fetchJobs = async (params: SearchParams = {}): Promise<any> => {
   try {
     // Create a sanitized copy of params to avoid serialization issues
     const sanitizedParams = JSON.parse(JSON.stringify(params));
-    
+
     const response = await fetch(`http://${JOBSPY_HOST}:${JOBSPY_PORT}/api`, {
       method: 'post',
       body: JSON.stringify(sanitizedParams),
       headers: { 'Content-Type': 'application/json' },
     });
-    
+
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}`);
     }
-    
+
     const json = await response.json();
     return json;
   } catch (error) {
@@ -45,13 +42,31 @@ const fetchJobs = async (params = {}) => {
   }
 };
 
+export const addJobs = async (jobs: JobData[]): Promise<JobData[]> => {
+  const pgClient = await pgConnect();
+  const insertedJobs: JobData[] = [];
+  for (const job of jobs) {
+    try {
+      const insertedJob = await insertJobDescription(job, pgClient);  
+      insertedJobs.push(insertedJob);
+    } catch (error) {
+      console.error('Error inserting job description:', error);
+    }
+  }
+  await pgClient.end();
+  return insertedJobs;
+};
+
 /**
  * Function to insert a job description into PostgreSQL database
- * @param {Object} jobData - Job data conforming to jobDescriptionSchema
- * @param {Object} pgClient - PostgreSQL client instance
- * @returns {Promise<Object>} - The inserted record
+ * @param {JobData} jobData - Job data conforming to jobDescriptionSchema
+ * @param {PgClient} pgClient - PostgreSQL client instance
+ * @returns {Promise<JobData>} - The inserted record
  */
-const insertJobDescription = async (jobData, pgClient) => {
+export const insertJobDescription = async (
+  jobData: JobData,
+  pgClient: PgClient
+): Promise<JobData> => {
   const query = `
     INSERT INTO jobspy.job_descriptions (
       title,
@@ -72,7 +87,7 @@ const insertJobDescription = async (jobData, pgClient) => {
   `;
 
   // Validate the job data against schema before inserting
-  const validatedData = jobDescriptionSchema.parse(jobData);
+  const validatedData = JobDescriptionSchema.parse(jobData);
 
   const values = [
     validatedData.title,
@@ -90,8 +105,8 @@ const insertJobDescription = async (jobData, pgClient) => {
   ];
 
   try {
-    const result = await pgClient.query(query, values);
-    return result.rows[0];
+    const result = await pgClient.queryObject(query, values);
+    return result.rows[0] as JobData;
   } catch (error) {
     console.error('Error inserting job description:', error);
     throw error;
@@ -103,26 +118,21 @@ const insertJobDescription = async (jobData, pgClient) => {
  *
  * @async
  * @function pgConnect
- * @param {Object} config - PostgreSQL connection configuration
- * @param {string} config.host - Database host
- * @param {number} config.port - Database port
- * @param {string} config.database - Database name
- * @param {string} config.user - Database user
- * @param {string} config.password - Database password
- * @returns {Promise<Object>} - PostgreSQL client instance
+ * @param {PgConfig} config - PostgreSQL connection configuration
+ * @returns {Promise<PgClient>} - PostgreSQL client instance
  * @throws {Error} If the connection fails
  */
-const pgConnect = async (config = {}) => {
-  const defaultConfig = {
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: process.env.POSTGRES_PORT || 5432,
-    database: process.env.POSTGRES_DB || 'n8n',
-    user: process.env.POSTGRES_USER || 'root',
-    password: process.env.POSTGRES_PASSWORD || 'password',
+export const pgConnect = async (config: Partial<PgConfig> = {}): Promise<PgClient> => {
+  const defaultConfig: PgConfig = {
+    host: Deno.env.get("POSTGRES_HOST") || 'localhost',
+    port: parseInt(Deno.env.get("POSTGRES_PORT") || '5432', 10),
+    database: Deno.env.get("POSTGRES_DB") || 'n8n',
+    user: Deno.env.get("POSTGRES_USER") || 'root',
+    password: Deno.env.get("POSTGRES_PASSWORD") || 'password',
   };
 
   const connectionConfig = { ...defaultConfig, ...config };
-  const client = new pg.Client(connectionConfig);
+  const client = new PgClient(connectionConfig);
 
   try {
     await client.connect();
@@ -134,9 +144,3 @@ const pgConnect = async (config = {}) => {
   }
 };
 
-module.exports = {
-  hello,
-  fetchJobs,
-  insertJobDescription,
-  pgConnect,
-};

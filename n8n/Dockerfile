@@ -2,7 +2,7 @@ FROM n8nio/n8n:next
 USER root
 RUN <<EOR
 	set -x
-	apk update && apk add sudo shadow bash curl nano jq docker-cli docker-cli-compose deno
+	apk update && apk add sudo shadow bash curl nano jq docker-cli docker-cli-compose util-linux-login deno
 	npm install -g @go-task/cli mcp-proxy pm2@latest
 	addgroup node root
 	echo "node ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/node

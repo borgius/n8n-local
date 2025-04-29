@@ -17,6 +17,31 @@ gitInit() {
   }
 }
 
+fixDockerPermissions() {
+  echo "Fixing docker permissions"
+  if [ -e /var/run/docker.sock ]; then
+    DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+    if [ "$DOCKER_GID" != "0" ]; then
+      echo "Docker socket belongs to group ID: $DOCKER_GID"
+      # Check if the group already exists with this GID
+      if ! getent group $DOCKER_GID > /dev/null; then
+        echo "Creating docker group with GID: $DOCKER_GID"
+        sudo groupadd -g $DOCKER_GID docker
+      fi
+      
+      # Add current user to the docker group
+      echo "Adding $(whoami) user to docker group"
+      sudo usermod -aG $DOCKER_GID $(whoami)
+      
+      echo "Docker permissions fixed. You may need to log out and back in for changes to take effect."
+    else
+      echo "Docker socket belongs to root group, no need to adjust permissions"
+    fi
+  else
+    echo "Docker socket not found at /var/run/docker.sock"
+  fi
+}
+
 fixPermissions() {
   echo "Fixing permissions"
   mkdir -p /home/node/.n8n/nodes

@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "n8n-nodes-browser-use": "^0.1.6",
-    "n8n-nodes-deno": "^0.4.4",
+    "n8n-nodes-deno": "^0.4.5",
     "n8n-nodes-mcp": "^0.1.13"
   }
 }
