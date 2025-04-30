@@ -8,7 +8,7 @@ CREATE TABLE jobspy.jobs (
   title VARCHAR(255) NOT NULL,
   company VARCHAR(255) NOT NULL,
   location VARCHAR(255),
-  date_posted BIGINT,
+  date_posted TIMESTAMP,
   job_type VARCHAR(50),
   salary_source VARCHAR(50),
   interval VARCHAR(50),
@@ -36,6 +36,7 @@ CREATE TABLE jobspy.jobs (
   vacancy_count VARCHAR(50),
   work_from_home_type VARCHAR(100),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for common search fields

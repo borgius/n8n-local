@@ -2,12 +2,8 @@ import { assertEquals, assertExists } from 'jsr:@std/assert';
 import { describe, it, beforeAll, afterAll } from 'jsr:@std/testing/bdd';
 import { Client as PgClient, ClientOptions } from 'jsr:@db/postgres';
 
-import { fetchJobs, pgConnect, insertJob, addJobs } from '../index.ts';
-import {
-  JobSpyResponse,
-  JobSpySchema,
-  SearchParams,
-} from '../types.ts';
+import { fetchJobs, pgConnect, addJobs } from '../index.ts';
+import { JobSpyResponse, SearchParams } from '../types.ts';
 
 /**
  * This file contains integration tests for the jobspy module.
@@ -32,6 +28,7 @@ describe('jobspy integration tests', () => {
   });
 
   afterAll(async () => {
+    await pgClient.queryObject(`DELETE FROM jobspy.jobs WHERE site = 'mock'`);
     await pgClient.end();
   });
   // Mock the pgClient to simulate database operations
@@ -96,16 +93,21 @@ describe('jobspy integration tests', () => {
   });
 
   describe('Database operations - PostgreSQL integration', () => {
-    it.only('should insert multiple jobs with addJobs function using mock data', async () => {
+    it('should insert multiple jobs with addJobs function using mock data', async () => {
       assertEquals(Array.isArray(mockData.jobs), true);
       const firstJob = mockData.jobs[0];
 
-      const result = await addJobs(mockData.jobs);
+      const jobs = mockData.jobs.map((job) => ({
+        ...job,
+        site: 'mock',
+      }));
+
+      await addJobs(jobs);
 
       // Verify that the data was "inserted" by querying the mock database
       const queryResult = await pgClient.queryObject(
         `
-        SELECT * FROM jobspy.job_descriptions
+        SELECT * FROM jobspy.jobs
         WHERE company = $1
       `,
         [firstJob.company]
@@ -115,6 +117,5 @@ describe('jobspy integration tests', () => {
       const row = queryResult.rows[0] as { title: string }; // Explicitly cast to expected type
       assertEquals(row.title, firstJob.title);
     });
-
   });
 });
