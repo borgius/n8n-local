@@ -21,27 +21,31 @@ networks:
 
 services:
   traefik:
-    image: traefik:v2.11
+    image: traefik:v3.3.6
     hostname: traefik
     container_name: traefik
     restart: unless-stopped
     networks: ['n8n']
     labels:
-      - traefik.http.middlewares.test-compress.compress=false
-      - traefik.http.middlewares.test-compress.compress.excludedcontenttypes=text/event-stream
+      - traefik.enable=true
+      # Configure no-compress middleware properly
+      - traefik.http.middlewares.no-compress.compress.excludedContentTypes=text/event-stream,text/html,application/json
+      - traefik.http.middlewares.strip-encoding.headers.customResponseHeaders.Content-Encoding=
+      - traefik.http.middlewares.strip-encoding.headers.customRequestHeaders.Accept-Encoding=
     command:
-      - --api=true
+      - --api.dashboard=true
       - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80  
+      - --entrypoints.web.address=:80
+      - --log.level=DEBUG
     ports:
-      - "80:80" # acesso ao n8n via Traefik
-      - "8080:8080" # dashboard do Traefik
+      - '80:80' # access ao n8n via Traefik
+      - '8080:8080' # dashboard do Traefik
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
-      - n8n  
+      - n8n
   n8n:
     image: n8n
     build:
@@ -53,11 +57,12 @@ services:
     restart: unless-stopped
     labels:
       - traefik.enable=true
-      - traefik.http.routers.n8n.rule=Host(`localhost`) && PathPrefix(`/mcp`)
-      - traefik.http.routers.n8n.rule=Host(`localhost`) && PathPrefix(`/`)
+      # Define routes for both localhost and host hostnames
+      - traefik.http.routers.n8n.rule=Host(`localhost`) || Host(`host`)
       - traefik.http.routers.n8n.entrypoints=web
+      - traefik.http.routers.n8n.middlewares=no-compress,strip-encoding
       - traefik.http.services.n8n.loadbalancer.server.port=5678
-      - traefik.http.services.n8n.loadbalancer.passHostHeader=true     
+      - traefik.http.services.n8n.loadbalancer.passHostHeader=true
     env_file:
       - .env
     entrypoint: scripts/init.sh
@@ -66,9 +71,9 @@ services:
       - fixDockerPermissions
       - extraPackages
       - communityNodes
-      - n8nImport
       - startMcpServers
-      - gitInit
+      # - n8nImport
+      # - gitInit
       - entrypoint
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -99,7 +104,7 @@ services:
       - n8n_storage:/home/node/.n8n
       - .gitignore:/home/node/.gitignore
       - ./n8n/scripts:/home/node/scripts
-      
+
       # additional packages for n8n
       - ./n8n/packages:/home/node/packages
       - packages_node_modules:/home/node/packages/node_modules
@@ -122,15 +127,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          'CMD',
-          'wget',
-          '--header=accept: application/json',
-          '-O',
-          '-',
-          'http://localhost:5678/healthz',
-        ]
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:5678/healthz']
       interval: 10s
       timeout: 5s
       retries: 5
