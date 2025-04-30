@@ -107,6 +107,7 @@ startMcpServers() {
   {
     + pnpm i
     + pm2 start
+    + pm2 log
   } &
   cd /home/node
   echo "MCP Servers started"

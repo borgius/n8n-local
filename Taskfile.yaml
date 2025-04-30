@@ -63,6 +63,13 @@ tasks:
       - docker compose down -v
       - task: start
 
+  n8n-restart:
+    aliases: [rs]
+    cmds:
+      - docker compose down n8n
+      - docker compose up -d n8n
+      - docker compose logs -f n8n
+      
   start:
     desc: Start docker containers
     aliases: [s]
