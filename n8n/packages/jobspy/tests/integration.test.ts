@@ -16,8 +16,8 @@ import { JobSpyResponse, JobSpySchema, SearchParams } from '../types.ts';
 const SITES = [
   'indeed',
   'linkedin',
-  'glassdoor',
   'google',
+  // 'glassdoor',
   // 'zip_recruiter',
   // 'bayt',
   // 'naukri',
@@ -52,12 +52,14 @@ describe('jobspy integration tests', () => {
 
   describe('fetchJobs() - External API integration', () => {
     SITES.forEach((site) => {
-      it.skip(`should fetch jobs from jobspy API for ${site}`, async () => {
+      it(`should fetch jobs from jobspy API for ${site}`, async () => {
         const params: SearchParams = {
           searchTerm: 'frontend developer',
           siteNames: site,
-          location: 'remote',
+          location: 'US',
+          isRemote: true,
           linkedinFetchDescription: true,
+          countryIndeed: 'USA',
         };
 
         const result = await fetchJobs(params);
@@ -191,7 +193,7 @@ describe('jobspy integration tests', () => {
 
   describe('Database operations - PostgreSQL integration', () => {
     SITES.forEach((site) => {
-      it.only(`should insert multiple jobs with addJobs function using mock data for ${site}`, async () => {
+      it(`should insert multiple jobs with addJobs function using mock data for ${site}`, async () => {
         const mockData = await getMockData(site);
 
         // Verify the mock data structure

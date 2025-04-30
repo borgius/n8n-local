@@ -20,6 +20,28 @@ networks:
   n8n:
 
 services:
+  traefik:
+    image: traefik:v2.11
+    hostname: traefik
+    container_name: traefik
+    restart: unless-stopped
+    networks: ['n8n']
+    labels:
+      - traefik.http.middlewares.test-compress.compress=false
+      - traefik.http.middlewares.test-compress.compress.excludedcontenttypes=text/event-stream
+    command:
+      - --api=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80  
+    ports:
+      - "80:80" # acesso ao n8n via Traefik
+      - "8080:8080" # dashboard do Traefik
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - n8n  
   n8n:
     image: n8n
     build:
@@ -29,6 +51,13 @@ services:
     container_name: n8n
     networks: ['n8n']
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.n8n.rule=Host(`localhost`) && PathPrefix(`/mcp`)
+      - traefik.http.routers.n8n.rule=Host(`localhost`) && PathPrefix(`/`)
+      - traefik.http.routers.n8n.entrypoints=web
+      - traefik.http.services.n8n.loadbalancer.server.port=5678
+      - traefik.http.services.n8n.loadbalancer.passHostHeader=true     
     env_file:
       - .env
     entrypoint: scripts/init.sh
@@ -48,8 +77,13 @@ services:
       - 5678:5678
       - 9423:9423
     environment:
+      - WEBHOOK_URL=http://localhost:80
+      - N8N_PROTOCOL=http
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_DISABLE_PRODUCTION_MAIN_PROCESS_RESPONSE_COMPRESSION=true
       - N8N_ENCRYPTION_KEY
       - N8N_USER_MANAGEMENT_JWT_SECRET
       - NODE_FUNCTION_ALLOW_BUILTIN=*
@@ -478,35 +512,35 @@ services:
       retries: 5
       start_period: 10s
 
-  nocodb:
-    image: nocodb/nocodb:latest
-    hostname: nocodb
-    container_name: nocodb
-    networks: ['n8n']
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-      - 'host:host-gateway'
-    restart: unless-stopped
-    ports:
-      - 8080:8080
-    environment:
-      - NC_DB=pg://postgres:5432?u=${POSTGRES_USER}&p=${POSTGRES_PASSWORD}&d=${POSTGRES_DB}
-      - NC_AUTH_JWT_SECRET=569a1821-0a93-45e8-87ab-eb857f20a010
-    volumes:
-      - nocodb_data:/usr/app/data
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'wget',
-          '-O',
-          '-',
-          'http://localhost:8080/api/v1/db/meta/projects',
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    depends_on:
-      postgres:
-        condition: service_healthy
+  # nocodb:
+  #   image: nocodb/nocodb:latest
+  #   hostname: nocodb
+  #   container_name: nocodb
+  #   networks: ['n8n']
+  #   extra_hosts:
+  #     - 'host.docker.internal:host-gateway'
+  #     - 'host:host-gateway'
+  #   restart: unless-stopped
+  #   ports:
+  #     - 4566:8080
+  #   environment:
+  #     - NC_DB=pg://postgres:5432?u=${POSTGRES_USER}&p=${POSTGRES_PASSWORD}&d=${POSTGRES_DB}
+  #     - NC_AUTH_JWT_SECRET=569a1821-0a93-45e8-87ab-eb857f20a010
+  #   volumes:
+  #     - nocodb_data:/usr/app/data
+  #   healthcheck:
+  #     test:
+  #       [
+  #         'CMD',
+  #         'wget',
+  #         '-O',
+  #         '-',
+  #         'http://localhost:8080/api/v1/db/meta/projects',
+  #       ]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
