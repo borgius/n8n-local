@@ -1,69 +1,123 @@
-import { z } from 'npm:zod';
+import { z } from 'zod';
 
-// Job Search Result Schema based on JobSpy's schema
-export const jobSpySchema = z
-  .object({
-    // ID
-    id: z.string().optional(),
+export const jobSpySchema = z.object({
+  // Core fields
+  id: z.string().nullable().optional(),
+  site: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  keywords: z.array(z.string()).nullable().optional(),
+  requiredSkills: z.array(z.string()).nullable().optional(),
+  niceToHaveSkills: z.array(z.string()).nullable().optional(),
+  skills: z.array(z.string()).nullable().optional(),
+  emails: z.string().nullable().optional(),
 
-    // Job Information
-    jobTitle: z.string().optional(),
-    jobSummary: z.string().nullish(),
-    description: z.string().optional(),
-    keywords: z.array(z.string()).optional(),
-    requiredSkills: z.array(z.string()).optional(),
-    niceToHaveSkills: z.array(z.string()).optional(),
+  // URLs
+  jobUrl: z.string().nullable().optional(),
+  jobUrlDirect: z.string().nullable().optional(),
 
-    // URLs
-    jobUrl: z.string().nullish(),
-    jobUrlDirect: z.string().nullish(),
+  // Location information
+  location: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  postalCode: z.string().nullable().optional(),
 
-    // Misc Information
-    location: z.string().nullish(),
-    country: z.string().nullish(),
-    state: z.string().nullish(),
-    city: z.string().nullish(),
-    postalCode: z.string().nullish(),
+  // Dates and job type
+  datePosted: z.union([z.string(), z.number()]).nullable().optional(),
+  jobType: z.string().nullable().optional(),
 
-    // Dates
-    datePosted: z.string().nullish(),
-    jobType: z.string().nullish(),
+  // Salary information
+  salary: z.string().nullable().optional(),
+  salarySource: z.string().nullable().optional(),
+  interval: z.string().nullable().optional(),
+  currency: z.string().nullable().optional(),
+  minAmount: z.number().nullable().optional(),
+  maxAmount: z.number().nullable().optional(),
 
-    // Salary Information
-    salary: z.string().nullish(),
-    salaryPeriod: z.string().nullish(),
-    salarySource: z.string().nullish(),
-    salaryCurrency: z.string().nullish(),
-    minAmount: z.number().nullish(),
-    maxAmount: z.number().nullish(),
+  // Job categorization
+  jobs: z.array(z.string()).nullable().optional(),
+  isRemote: z.boolean().nullable().optional(),
+  jobLevel: z.string().nullable().optional(),
+  jobFunction: z.string().nullable().optional(),
+  listingType: z.string().nullable().optional(),
 
-    // Job Categorization
-    jobs: z.array(z.string()).nullish(),
-    isRemote: z.boolean().nullish(),
-    jobLevel: z.string().nullish(),
-    jobFunction: z.string().nullish(),
-    listingType: z.string().nullish(),
+  // Experience
+  experience: z.string().nullable().optional(),
+  experienceRange: z.string().nullable().optional(),
 
-    // Experience
-    experience: z.string().nullish(),
-    experienceRange: z.string().nullish(),
+  // Company Information
+  companyName: z.string().nullable().optional(),
+  companyIndustry: z.string().nullable().optional(),
+  companyUrl: z.string().nullable().optional(),
+  companyLogo: z.string().nullable().optional(),
+  companyUrlDirect: z.string().nullable().optional(),
+  companyAddresses: z.string().nullable().optional(),
+  companyNumEmployees: z.string().nullable().optional(),
+  companyRevenue: z.string().nullable().optional(),
+  companyDescription: z.string().nullable().optional(),
+  companyRating: z.string().nullable().optional(),
+  companyReviewsCount: z.string().nullable().optional(),
 
-    // Company Information
-    companyName: z.string().optional(),
-    companyIndustry: z.string().nullish(),
-    companyUrl: z.string().nullish(),
-    companyLogo: z.string().nullish(),
-    companyUrlDirect: z.string().nullish(),
-    companyAddresses: z.string().nullish(),
-    companyNumEmployees: z.string().nullish(),
-    companyRevenue: z.string().nullish(),
-    companyDescription: z.string().nullish(),
-    companyRating: z.string().nullish(),
-    companyReviewsCount: z.string().nullish(),
+  // Additional Information
+  postingStatus: z.string().nullable().optional(),
+  vacancyCount: z.string().nullable().optional(),
+  workFromHomeType: z.string().nullable().optional(),
+});
 
-    // Additional Information
-    postingStatus: z.string().nullish(),
-    vacancyCount: z.string().nullish(),
-    workFromHomeType: z.string().nullish(),
-  })
-  .passthrough(); // Allow additional properties not explicitly defined
+export const searchParamsSchema = z.object({
+  siteNames: z
+    .union([z.string(), z.array(z.string())])
+    .nullable()
+    .optional(),
+  searchTerm: z.string().nullable().optional(),
+  location: z.string().nullable().optional(),
+  distance: z.number().nullable().optional(),
+  jobType: z
+    .enum(['fulltime', 'parttime', 'internship', 'contract'])
+    .nullable()
+    .optional(),
+  googleSearchTerm: z.string().nullable().optional(),
+  resultsWanted: z.number().nullable().optional(),
+  easyApply: z.boolean().nullable().optional(),
+  descriptionFormat: z.enum(['markdown', 'html']).nullable().optional(),
+  offset: z.number().nullable().optional(),
+  hoursOld: z.number().nullable().optional(),
+  verbose: z.number().min(0).max(2).nullable().optional(),
+  countryIndeed: z.string().nullable().optional(),
+  isRemote: z.boolean().nullable().optional(),
+  linkedinFetchDescription: z.boolean().nullable().optional(),
+  linkedinCompanyIds: z
+    .union([z.string(), z.array(z.number())])
+    .nullable()
+    .optional(),
+  enforceAnnualSalary: z.boolean().nullable().optional(),
+  proxies: z
+    .union([z.string(), z.array(z.string())])
+    .nullable()
+    .optional(),
+  caCert: z.string().nullable().optional(),
+  format: z.enum(['json', 'csv']).nullable().optional(),
+  timeout: z.number().nullable().optional(),
+
+  // Legacy parameters for backward compatibility
+  site: z
+    .union([z.string(), z.array(z.string())])
+    .nullable()
+    .optional(),
+  search_term: z.string().nullable().optional(),
+  country_indeed: z.string().nullable().optional(),
+  linkedin_fetch_description: z.boolean().nullable().optional(),
+  linkedin_company_ids: z
+    .union([z.string(), z.array(z.number())])
+    .nullable()
+    .optional(),
+  description_format: z.enum(['markdown', 'html']).nullable().optional(),
+  is_remote: z.boolean().nullable().optional(),
+  hours_old: z.number().nullable().optional(),
+  results_wanted: z.number().nullable().optional(),
+  easy_apply: z.boolean().nullable().optional(),
+  job_type: z.string().nullable().optional(),
+  enforce_annual_salary: z.boolean().nullable().optional(),
+});

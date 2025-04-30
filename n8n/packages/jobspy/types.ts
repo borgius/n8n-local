@@ -1,34 +1,27 @@
 export interface SearchParams {
-  search_term?: string;
-  site?: string | string[];
+  siteNames?: string | string[];
+  searchTerm?: string;
   location?: string;
-  country?: string;
-  remoteness?: string;
-  [key: string]: string | string[] | number | boolean | undefined;
-}
+  distance?: number;
+  jobType?: 'fulltime' | 'parttime' | 'internship' | 'contract' | null;
+  googleSearchTerm?: string | null;
+  resultsWanted?: number;
+  easyApply?: boolean;
+  descriptionFormat?: 'markdown' | 'html';
+  offset?: number;
+  hoursOld?: number;
+  verbose?: number;
+  countryIndeed?: string;
+  isRemote?: boolean;
+  linkedinFetchDescription?: boolean;
+  linkedinCompanyIds?: string | number[] | null;
+  enforceAnnualSalary?: boolean;
+  proxies?: string | string[] | null;
+  caCert?: string | null;
+  format?: 'json' | 'csv';
+  timeout?: number;
 
-export interface Location {
-  city?: string;
-  state?: string;
-  country?: string;
-  [key: string]: string | undefined;
 }
-
-// export interface JobData {
-//   title: string;
-//   company: string;
-//   type: string;
-//   date: string;
-//   description: string;
-//   location: Location;
-//   remote: boolean;
-//   salary: string;
-//   experience: string;
-//   responsibilities: string[];
-//   qualifications: string[];
-//   skills: string[];
-//   [key: string]: string | string[] | number | boolean | Location | undefined;
-// }
 
 export interface JobSpySchema {
   // ID
@@ -101,5 +94,5 @@ export interface JobSpySchema {
 export interface JobSpyResponse {
   jobs: JobSpySchema[];
   count: number;
-  message: string; // Changed from number to string based on mock.json
+  message?: string; // Changed from number to string based on mock.json
 }
