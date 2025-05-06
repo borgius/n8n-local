@@ -66,9 +66,9 @@ tasks:
   n8n-restart:
     aliases: [rs]
     cmds:
-      - docker compose down n8n
-      - docker compose up -d n8n
-      - docker compose logs -f n8n
+      - docker compose down n8n traefik
+      - docker compose up -d n8n traefik
+      - docker compose logs -f n8n traefik
       
   start:
     desc: Start docker containers
